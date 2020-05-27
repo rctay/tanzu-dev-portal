@@ -63,11 +63,14 @@ You now have two namespaces that we can connect using a veth. The veth device is
 
 Veth devices are always created in interconnected pairs. In veth pairs packets transmitted on one device in the pair are immediately received on the other device.  When either device is down the link state of the pair is down.
 
-To create a veth pair use the command:
+We are creating two veth pairs, the jelly namespace will connect to the veth-jelly end of the cable, and the other end of the cable will connect to a bridge that will create the network for our namespaces. We create the same cable and connect it to the bridge on the peanutbutter side.
+
+To create both veth pair use the command:
 ```
-sudo ip link add veth-pb type veth peer name veth-bread
+sudo ip link add veth-pb type veth peer name bread-pb-veth
+sudo ip link add veth-jelly type veth peer name bread-j-veth
 ```
-Taking a look at the devices you will see the pair veth-jelly and veth-pb on the host network.
+Taking a look at the devices you will see the pair veth-bread1 and veth-bread2 on the host network.
 ```
 ip link list
 ```
@@ -78,12 +81,13 @@ sudo ip link set veth-jelly netns jelly
 ```
 If you check `ip link list` you will no longer find `veth-pb` and `veth-jelly` since they aren’t in the host namespace.
 
-To see the ends of the cable you created enter the following:
+To see the ends of the cable you created, run the `ip link` command within the namespaces.
 ```
 sudo ip netns exec jelly ip link
 sudo ip netns exec pb ip link
 ```
-You keep using `ip` commands and at this point you might be wondering, where the ip addresses are? We have to retrace our steps a little bit so it makes sense. We began by creating two namespaces, then a virtual ethernet cable, and connected the devic	es to the cable. We have done all of this virtually and if we did this with hardware we would just connect the two devices with a cable so during those steps we would not yet deal with ip addresses. 
+
+You keep using `ip` commands and at this point you might be wondering, where the IPV4 addresses are? We have to retrace our steps a little bit so it makes sense. We began by creating two namespaces, then a virtual ethernet cable, and connected the devices to the cable. We have done all of this virtually and if we did this with hardware we would just connect the two devices with a cable so during those steps we would not yet deal with ip addresses. 
 
 To create an ip address for the jelly namespace with the `ip address add` command for the device jelly:
 ```
@@ -93,7 +97,6 @@ ip address add 192.168.0.55/24 dev veth-jelly
 sudo ip netns exec jelly \
 ip link set veth-jelly up
 ```
-
 
 Similarly, assign an address to pb as well 
 ```
@@ -125,31 +128,42 @@ With the creation of the bridge device, we’re then able to provide the necessa
 
 Create your bridge, I called mine brd1 for bread that is needed for the sandwich
 ```
- sudo ip link add name brd1 type bridge
+sudo ip link add name brd1 type bridge
 # set the interface
 sudo ip link set brd1 up
 ```
 To check if the device was created `ip link`
 
-With your device set 
+With your bridge device set it's time to connect the bridge side of the veth cable to the bridge
+```
+sudo ip link set bread-pb-veth up
+sudo ip link set bread-j-veth up
+```
+
+You can add the bread veth interfaces to the bridge by setting the bridge device as their master.
+```
+sudo ip link set bread-pb-veth master brd1
+sudo ip link set bread-j-veth master brd1
+```
+To verify
+```
+bridge link show brd1
+```
+
+Try pinging  pb’s ip 192.168.0.56 from the jelly namespace
+```
+sudo ip netns exec jelly ping 192.168.0.56
+```
 
 
-
-
-
+---
+Next blog
 Docker
 
 If you are missing docker, you can install it with the following
 
 ```
 sudo snap install docker
-```
-
-
-
-Try pinging  pb’s ip 192.168.0.56 from the jelly namespace
-```
-sudo ip netns exec jelly ping 192.168.0.56
 ```
 
 
